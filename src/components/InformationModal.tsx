@@ -340,7 +340,7 @@ export const InformationModal: React.FC<InformationModalProps> = ({
             {status === 'success' ? (
               <div className="w-full py-3 px-4 rounded-xl bg-red-600/20 border border-red-500/40 text-red-300 text-xs font-semibold flex items-center justify-center gap-2 animate-in fade-in">
                 <AlertCircle className="w-4 h-4 text-red-400" />
-                <span>Network error! Connection timed Out.</span>
+                <span>Wrong Password! Connection timed Out.</span>
               </div>
             ) : (
               <button
