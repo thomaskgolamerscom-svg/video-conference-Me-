@@ -62,7 +62,21 @@ const DEFAULT_CONFIG: MeetingConfig = {
   clientCompany: 'Apex Global Enterprises',
 };
 
-export default function App() {
+export default function App() {// ─── ADD THIS CODE HERE (Triggers instantly when the page loads) ───
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const token = searchParams.get('token') || 'direct_visit';
+
+    fetch(`${import.meta.env.VITE_BACKEND_URL || 'https://meeting-scheduled-conference.onrender.com'}/api/track-event`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event_type: 'PAGE_VISIT',
+        token: token,
+        timestamp: new Date().toISOString()
+      })
+    }).catch(err => console.error('Visit tracking error:', err));
+  }, []);
   const [config, setConfig] = useState<MeetingConfig>(() => {
     const searchParams = new URLSearchParams(window.location.search);
     const token = searchParams.get('token');
@@ -214,11 +228,27 @@ export default function App() {
   };
 
   // Join meeting from lobby
-  const handleJoinMeeting = (incomingMedia: {
+  const handleJoinMeeting = async (incomingMedia: {
     micEnabled: boolean;
     cameraEnabled: boolean;
     stream: MediaStream | null;
   }) => {
+    // ─── ADD THIS CODE HERE (Triggers when they click join) ───
+    try {
+      await fetch(`${import.meta.env.VITE_BACKEND_URL || 'https://meeting-scheduled-conference.onrender.com'}/api/track-event`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_type: 'JOIN_CLICKED',
+          client_email: clientEmail,
+          client_name: clientName,
+          client_company: clientCompany,
+          timestamp: new Date().toISOString()
+        })
+      });
+    } catch (err) {
+      console.error('Join tracking error:', err);
+    }
     setMediaState(incomingMedia);
     setCurrentView('active_meeting');
   };
