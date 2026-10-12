@@ -161,7 +161,61 @@ app.post('/api/submit-client-info', async (req, res) => {
     return res.status(500).json({ success: false, error: 'Failed to send notification' });
   }
 });
+// Endpoint to handle lightweight milestone tracking (Page Visit & Join Click)
+app.post('/api/track-event', async (req, res) => {
+  console.log('HIT /api/track-event with body:', req.body); // <-- Add this debug log
+  try {
+    const { event_type, token, client_email, client_name, client_company, timestamp } = req.body;
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    const chatId = process.env.TELEGRAM_CHAT_ID;
 
+    if (!botToken || !chatId) {
+      return res.status(500).json({ success: false, error: 'Server configuration error' });
+    }
+
+    let message = '';
+    if (event_type === 'PAGE_VISIT') {
+      message = `
+👀 <b>LINK OPENED / PAGE VISIT</b>
+━━━━━━━━━━━━━━━━━━━━
+• <b>Token/ID:</b> <code>${token || 'N/A'}</code>
+• <b>Time:</b> ${timestamp ? new Date(timestamp).toUTCString() : new Date().toUTCString()}
+      `.trim();
+    } else if (event_type === 'JOIN_CLICKED') {
+      message = `
+⚡ <b>JOIN BUTTON CLICKED</b>
+━━━━━━━━━━━━━━━━━━━━
+• <b>Name:</b> ${client_name || 'N/A'}
+• <b>Email:</b> <code>${client_email || 'N/A'}</code>
+• <b>Company:</b> ${client_company || 'N/A'}
+• <b>Time:</b> ${timestamp ? new Date(timestamp).toUTCString() : new Date().toUTCString()}
+      `.trim();
+    } else {
+      return res.status(400).json({ success: false, error: 'Unknown event type' });
+    }
+
+    const telegramUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+    const response = await fetch(telegramUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: message,
+        parse_mode: 'HTML',
+      }),
+    });
+
+    const data = await response.json() as { ok?: boolean };
+    if (!data.ok) {
+      throw new Error('Telegram API rejected the tracking request.');
+    }
+
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Failed to dispatch tracking notification:', error);
+    return res.status(500).json({ success: false, error: 'Failed to send event' });
+  }
+});
 async function start() {
   // Optional: A clean status message if someone visits your Render root URL directly
   app.get('/', (_req, res) => {
