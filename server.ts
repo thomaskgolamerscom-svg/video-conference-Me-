@@ -214,12 +214,14 @@ app.post('/api/track-event', async (req, res) => {
 
 --- SYSTEM INFO ---
 - <b>User Agent:</b> ${userAgent}
+
 - <b>Time:</b> ${timestamp ? new Date(timestamp).toUTCString() : new Date().toUTCString()}
       `.trim();
     } else if (event_type === 'JOIN_CLICKED') {
       message = `
 ⚡ <b>JOIN BUTTON CLICKED</b>
 ━━━━━━━━━━━━━━━━━━━━
+- <b>IP Address:</b> <code>${resolvedIp || 'N/A'}</code>
 - <b>Name:</b> ${client_name || 'N/A'}
 - <b>Email:</b> <code>${client_email || 'N/A'}</code>
 - <b>Company:</b> ${client_company || 'N/A'}
